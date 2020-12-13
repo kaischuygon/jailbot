@@ -1,0 +1,21 @@
+{
+  "name": "jailbot",
+  "version": "1.0.0",
+  "description": "A discord bot that allows voting to place users in \"jail\"",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "run": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "discord",
+    "bot"
+  ],
+  "author": "Kai Schuyler Gonzalez",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^12.5.1",
+    "nodemon": "^2.0.6"
+  }
+}

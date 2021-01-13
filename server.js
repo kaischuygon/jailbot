@@ -1,6 +1,24 @@
 const Discord = require('discord.js')
 const client = new Discord.Client()
 const config = require('./config.json')
+const mongoose = require('mongoose')
+mongoose.connect('mongodb://localhost:27017/jailbot', {useNewUrlParser: true, useUnifiedTopology: true})
+
+const db = mongoose.connection
+
+db.on('error', console.error.bind(console, 'db connection error:'))
+
+let Prison
+db.once('open', function () {
+    console.log('Successfully connected to database')
+    var prisonerSchema = mongoose.Schema({
+        userid: String,
+        username: String,
+        jails: Number,
+        versionKey: false
+    })
+    Prison = mongoose.model('Prison', prisonerSchema)
+})
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`)
@@ -32,46 +50,46 @@ async function sendVoteMessage(msg, args) {
         reason += args[i] + ' '
     }
     reason += args[args.length - 1]
-    const poll = await msg.channel.send(`${msg.author.username} wants to jail ${taggedUser.username}: "${reason}"`)
-        .then(async voteMessage => {
+    await msg.channel.send(`${msg.author} wants to jail ${taggedUser}\u0060\u0060\u0060CS\n# Reason: \n'${reason}'\n// This vote will end in ${config.timeout} milliseconds.\n\u0060\u0060\u0060@here`)
+        .then(async poll => {
             try {
-                await voteMessage.react('👍')
-                await voteMessage.react('👎')
+                await poll.react('👍')
+                await poll.react('👎')
+                const filter = (reaction) => {
+                    return reaction.emoji.name === '👍' || reaction.emoji.name === '👎'
+                }
+                poll.awaitReactions(filter, { time: config.timeout })
+                    .then(collected => {
+                        console.log(`Collected ${collected.size} reactions`)
+                        if(collected.size > 0) {
+                            var thumbsUp = 0
+                            var thumbsDown = 0
+                            if(collected.get('👍') != null) thumbsUp = collected.get('👍').count
+                            if(collected.get('👎') != null) thumbsDown = collected.get('👎').count
+                            if(thumbsUp > thumbsDown) {
+                                jailUser(taggedUser)
+                                poll.channel.send(`${taggedUser.username} has been jailed!`)
+                            } else {
+                                poll.channel.send(`${taggedUser.username} has not been jailed.`)
+                            }
+                        }
+                    })
+                    .catch(console.error)
             } catch(err) {
                 console.error('One of the emojis failed to react.')
             }
         })
+}
 
-    const usedEmojis = Object.keys('👍', '👎')
-    const reactionCollector = poll.createReactionCollector(
-        (reaction, user) => usedEmojis.includes(reaction.emoji.name) && !user.bot,
-        time = 5
-    )
-
-    const voterInfo = new Map()
-    reactionCollector.on('collect', (reaction, user) => {
-        if(userdEmohius.inclues(reaction.emoji)) {
-            if(!voterInfo.has(user.id)) voterInfo.set(user.id, { emoji: reaction.emoji.name })
-            const votedEmoji = voterInfo.get(user.id).emoji
-            emojiInfo[reaction.emoji.name].votes += 1
-        }
-    })
-
-    reactionCollector.on('dispose', (reaction, user) => {
-        if(usedEmojis.includes(reaction.emoji.name)) {
-            voterInfo.delete(user.id)
-            emojiInfo[reaction.emoji.name].voteMessage -= 1;
-        }
-    })
-
-    reactionCollector.on('end', () => {
-        let voteCount
-		for(const emoji in emojiInfo) {
-            voteCount += `\`${emojiInfo[emoji].option}\` - \`${emojiInfo[emoji].votes}\`\n\n`;
-        }
-		poll.delete();
-		msg.channel.send(`Time\'s up!\n ${voteCount}`);
-	});
+async function jailUser(user) {
+    console.log(`Jailing user: ${user.username}`)
+    let docs = await Prison.find({userid: userid }).countDocuments().then(docs => { docs; })
+    console.log(docs)
+    // var newPrisoner = new Prisoner({ userid: user.userid, username: user.username, jails: 1})
+    // newPrisoner.save(function (err, prisoner) {
+    //     if(err) return console.error(err)
+    //     console.log(`Jailed user: ${prisoner.username}`)
+    // })
 }
 
 client.login(config.token)
